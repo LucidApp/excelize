@@ -310,9 +310,10 @@ type Cell struct {
 // RowOpts define the options for the set row, it can be used directly in
 // StreamWriter.SetRow to specify the style and properties of the row.
 type RowOpts struct {
-	Height  float64
-	Hidden  bool
-	StyleID int
+	Height       float64
+	Hidden       bool
+	StyleID      int
+	OutlineLevel int
 }
 
 // marshalAttrs prepare attributes of the row.
@@ -328,6 +329,10 @@ func (r *RowOpts) marshalAttrs() (strings.Builder, error) {
 		err = ErrMaxRowHeight
 		return attrs, err
 	}
+	if r.OutlineLevel > 7 {
+		err = ErrOutlineLevel
+		return attrs, err
+	}
 	if r.StyleID > 0 {
 		attrs.WriteString(` s="`)
 		attrs.WriteString(strconv.Itoa(r.StyleID))
@@ -337,6 +342,11 @@ func (r *RowOpts) marshalAttrs() (strings.Builder, error) {
 		attrs.WriteString(` ht="`)
 		attrs.WriteString(strconv.FormatFloat(r.Height, 'f', -1, 64))
 		attrs.WriteString(`" customHeight="1"`)
+	}
+	if r.OutlineLevel > 0 {
+		attrs.WriteString(` outlineLevel="`)
+		attrs.WriteString(strconv.Itoa(r.OutlineLevel))
+		attrs.WriteString(`"`)
 	}
 	if r.Hidden {
 		attrs.WriteString(` hidden="1"`)
@@ -354,9 +364,9 @@ func parseRowOpts(opts ...RowOpts) *RowOpts {
 	return options
 }
 
-// SetRow writes an array to stream rows by giving a worksheet name, starting
-// coordinate and a pointer to an array of values. Note that you must call the
-// 'Flush' method to end the streaming writing process.
+// SetRow writes an array to stream rows by giving starting cell reference and a
+// pointer to an array of values. Note that you must call the 'Flush' function
+// to end the streaming writing process.
 //
 // As a special case, if Cell is used as a value, then the Cell.StyleID will be
 // applied to that cell.
@@ -438,17 +448,17 @@ func (sw *StreamWriter) SetColWidth(min, max int, width float64) error {
 	return nil
 }
 
-// InsertPageBreak create a page break to determine where the printed page
-// ends and where begins the next one by given worksheet name and cell
-// reference, so the content before the page break will be printed on one page
-// and after the page break on another.
+// InsertPageBreak creates a page break to determine where the printed page ends
+// and where begins the next one by a given cell reference, the content before
+// the page break will be printed on one page and after the page break on
+// another.
 func (sw *StreamWriter) InsertPageBreak(cell string) error {
 	return sw.worksheet.insertPageBreak(cell)
 }
 
 // SetPanes provides a function to create and remove freeze panes and split
-// panes by given worksheet name and panes options for the StreamWriter. Note
-// that you must call the 'SetPanes' function before the 'SetRow' function.
+// panes by giving panes options for the StreamWriter. Note that you must call
+// the 'SetPanes' function before the 'SetRow' function.
 func (sw *StreamWriter) SetPanes(panes string) error {
 	if sw.sheetWritten {
 		return ErrStreamSetPanes
