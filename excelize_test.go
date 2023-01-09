@@ -250,7 +250,11 @@ func TestOpenReader(t *testing.T) {
 		assert.NoError(t, zw.Close())
 		return buf
 	}
-	for _, defaultXMLPath := range []string{defaultXMLPathCalcChain, defaultXMLPathStyles} {
+	for _, defaultXMLPath := range []string{
+		defaultXMLPathCalcChain,
+		defaultXMLPathStyles,
+		defaultXMLPathWorkbookRels,
+	} {
 		_, err = OpenReader(preset(defaultXMLPath))
 		assert.EqualError(t, err, "XML syntax error on line 1: invalid UTF-8")
 	}
@@ -353,9 +357,8 @@ func TestNewFile(t *testing.T) {
 	f.SetActiveSheet(0)
 
 	// Test add picture to sheet with scaling and positioning
-	scale := 0.5
 	assert.NoError(t, f.AddPicture("Sheet1", "H2", filepath.Join("test", "images", "excel.gif"),
-		&PictureOptions{XScale: &scale, YScale: &scale, Positioning: "absolute"}))
+		&GraphicOptions{ScaleX: 0.5, ScaleY: 0.5, Positioning: "absolute"}))
 
 	// Test add picture to worksheet without options
 	assert.NoError(t, f.AddPicture("Sheet1", "C2", filepath.Join("test", "images", "excel.png"), nil))
@@ -1283,7 +1286,7 @@ func TestHSL(t *testing.T) {
 func TestProtectSheet(t *testing.T) {
 	f := NewFile()
 	sheetName := f.GetSheetName(0)
-	assert.NoError(t, f.ProtectSheet(sheetName, nil))
+	assert.EqualError(t, f.ProtectSheet(sheetName, nil), ErrParameterInvalid.Error())
 	// Test protect worksheet with XOR hash algorithm
 	assert.NoError(t, f.ProtectSheet(sheetName, &SheetProtectionOptions{
 		Password:      "password",
@@ -1517,13 +1520,13 @@ func prepareTestBook1() (*File, error) {
 	}
 
 	if err = f.AddPicture("Sheet2", "I9", filepath.Join("test", "images", "excel.jpg"),
-		&PictureOptions{OffsetX: 140, OffsetY: 120, Hyperlink: "#Sheet2!D8", HyperlinkType: "Location"}); err != nil {
+		&GraphicOptions{OffsetX: 140, OffsetY: 120, Hyperlink: "#Sheet2!D8", HyperlinkType: "Location"}); err != nil {
 		return nil, err
 	}
 
 	// Test add picture to worksheet with offset, external hyperlink and positioning
 	if err := f.AddPicture("Sheet1", "F21", filepath.Join("test", "images", "excel.png"),
-		&PictureOptions{
+		&GraphicOptions{
 			OffsetX:       10,
 			OffsetY:       10,
 			Hyperlink:     "https://github.com/xuri/excelize",
@@ -1562,9 +1565,8 @@ func prepareTestBook3() (*File, error) {
 		return nil, err
 	}
 	f.SetActiveSheet(0)
-	scale := 0.5
 	if err := f.AddPicture("Sheet1", "H2", filepath.Join("test", "images", "excel.gif"),
-		&PictureOptions{XScale: &scale, YScale: &scale, Positioning: "absolute"}); err != nil {
+		&GraphicOptions{ScaleX: 0.5, ScaleY: 0.5, Positioning: "absolute"}); err != nil {
 		return nil, err
 	}
 	if err := f.AddPicture("Sheet1", "C2", filepath.Join("test", "images", "excel.png"), nil); err != nil {
