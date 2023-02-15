@@ -51,8 +51,8 @@ func parseGraphicOptions(opts *GraphicOptions) *GraphicOptions {
 
 // AddPicture provides the method to add picture in a sheet by given picture
 // format set (such as offset, scale, aspect ratio setting and print settings)
-// and file path, supported image types: EMF, EMZ, GIF, JPEG, JPG, PNG, SVG,
-// TIF, TIFF, WMF, and WMZ. This function is concurrency safe. For example:
+// and file path, supported image types: BMP, EMF, EMZ, GIF, JPEG, JPG, PNG,
+// SVG, TIF, TIFF, WMF, and WMZ. This function is concurrency safe. For example:
 //
 //	package main
 //
@@ -110,14 +110,14 @@ func parseGraphicOptions(opts *GraphicOptions) *GraphicOptions {
 //	    }
 //	}
 //
-// The optional parameter "Autofit" specifies if you make image size auto-fits the
+// The optional parameter "AutoFit" specifies if you make image size auto-fits the
 // cell, the default value of that is 'false'.
 //
 // The optional parameter "Hyperlink" specifies the hyperlink of the image.
 //
 // The optional parameter "HyperlinkType" defines two types of
 // hyperlink "External" for website or "Location" for moving to one of the
-// cells in this workbook. When the "hyperlink_type" is "Location",
+// cells in this workbook. When the "HyperlinkType" is "Location",
 // coordinates need to start with "#".
 //
 // The optional parameter "Positioning" defines two types of the position of an
@@ -436,8 +436,9 @@ func (f *File) addMedia(file []byte, ext string) string {
 // type for relationship parts and the Main Document part.
 func (f *File) setContentTypePartImageExtensions() error {
 	imageTypes := map[string]string{
-		"jpeg": "image/", "png": "image/", "gif": "image/", "svg": "image/", "tiff": "image/",
-		"emf": "image/x-", "wmf": "image/x-", "emz": "image/x-", "wmz": "image/x-",
+		"bmp": "image/", "jpeg": "image/", "png": "image/", "gif": "image/",
+		"svg": "image/", "tiff": "image/", "emf": "image/x-", "wmf": "image/x-",
+		"emz": "image/x-", "wmz": "image/x-",
 	}
 	content, err := f.contentTypesReader()
 	if err != nil {
