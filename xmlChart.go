@@ -333,6 +333,7 @@ type cCharts struct {
 	VaryColors   *attrValBool   `xml:"varyColors"`
 	Wireframe    *attrValBool   `xml:"wireframe"`
 	Ser          *[]cSer        `xml:"ser"`
+	SplitPos     *attrValInt    `xml:"splitPos"`
 	SerLines     *attrValString `xml:"serLines"`
 	DLbls        *cDLbls        `xml:"dLbls"`
 	Shape        *attrValString `xml:"shape"`
@@ -540,12 +541,13 @@ type ChartDimension struct {
 
 // ChartPlotArea directly maps the format settings of the plot area.
 type ChartPlotArea struct {
-	ShowBubbleSize  bool
-	ShowCatName     bool
-	ShowLeaderLines bool
-	ShowPercent     bool
-	ShowSerName     bool
-	ShowVal         bool
+	SecondPlotValues int
+	ShowBubbleSize   bool
+	ShowCatName      bool
+	ShowLeaderLines  bool
+	ShowPercent      bool
+	ShowSerName      bool
+	ShowVal          bool
 }
 
 // Chart directly maps the format settings of the chart.
@@ -579,7 +581,6 @@ type ChartMarker struct {
 
 // ChartLine directly maps the format settings of the chart line.
 type ChartLine struct {
-	Color  string
 	Smooth bool
 	Width  float64
 }
@@ -588,7 +589,9 @@ type ChartLine struct {
 type ChartSeries struct {
 	Name       string
 	Categories string
+	Sizes      string
 	Values     string
+	Fill       Fill
 	Line       ChartLine
 	Marker     ChartMarker
 }
