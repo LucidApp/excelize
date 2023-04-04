@@ -52,9 +52,8 @@ func TestConcurrency(t *testing.T) {
 				},
 			))
 			// Concurrency get cell picture
-			name, raw, err := f.GetPicture("Sheet1", "A1")
-			assert.Equal(t, "", name)
-			assert.Nil(t, raw)
+			pics, err := f.GetPictures("Sheet1", "A1")
+			assert.Len(t, pics, 0)
 			assert.NoError(t, err)
 			// Concurrency iterate rows
 			rows, err := f.Rows("Sheet1")
@@ -433,6 +432,11 @@ func TestGetValueFrom(t *testing.T) {
 	value, err := c.getValueFrom(f, sst, false)
 	assert.NoError(t, err)
 	assert.Equal(t, "", value)
+
+	c = xlsxC{T: "s", V: " 1 "}
+	value, err = c.getValueFrom(f, &xlsxSST{Count: 1, SI: []xlsxSI{{}, {T: &xlsxT{Val: "s"}}}}, false)
+	assert.NoError(t, err)
+	assert.Equal(t, "s", value)
 }
 
 func TestGetCellFormula(t *testing.T) {
@@ -572,7 +576,7 @@ func TestSetCellFormula(t *testing.T) {
 	for idx, row := range [][]interface{}{{"A", "B", "C"}, {1, 2}} {
 		assert.NoError(t, f.SetSheetRow("Sheet1", fmt.Sprintf("A%d", idx+1), &row))
 	}
-	assert.NoError(t, f.AddTable("Sheet1", "A1:C2", &TableOptions{Name: "Table1", StyleName: "TableStyleMedium2"}))
+	assert.NoError(t, f.AddTable("Sheet1", &Table{Range: "A1:C2", Name: "Table1", StyleName: "TableStyleMedium2"}))
 	formulaType = STCellFormulaTypeDataTable
 	assert.NoError(t, f.SetCellFormula("Sheet1", "C2", "=SUM(Table1[[A]:[B]])", FormulaOpts{Type: &formulaType}))
 	assert.NoError(t, f.SaveAs(filepath.Join("test", "TestSetCellFormula6.xlsx")))

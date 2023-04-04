@@ -564,7 +564,7 @@ func (c *xlsxC) getValueFrom(f *File, d *xlsxSST, raw bool) (string, error) {
 	case "s":
 		if c.V != "" {
 			xlsxSI := 0
-			xlsxSI, _ = strconv.Atoi(c.V)
+			xlsxSI, _ = strconv.Atoi(strings.TrimSpace(c.V))
 			if _, ok := f.tempFiles.Load(defaultXMLPathSharedStrings); ok {
 				return f.formattedValue(c.S, f.getFromStringItem(xlsxSI), raw)
 			}
@@ -694,8 +694,8 @@ type FormulaOpts struct {
 //	            return
 //	        }
 //	    }
-//	    if err := f.AddTable("Sheet1", "A1:C2", &excelize.TableOptions{
-//	        Name: "Table1", StyleName: "TableStyleMedium2",
+//	    if err := f.AddTable("Sheet1", &excelize.Table{
+//	        Range: "A1:C2", Name: "Table1", StyleName: "TableStyleMedium2",
 //	    }); err != nil {
 //	        fmt.Println(err)
 //	        return
@@ -801,12 +801,13 @@ func (f *File) GetCellHyperLink(sheet, cell string) (bool, string, error) {
 	if err != nil {
 		return false, "", err
 	}
-	if cell, err = f.mergeCellsParser(ws, cell); err != nil {
-		return false, "", err
-	}
 	if ws.Hyperlinks != nil {
 		for _, link := range ws.Hyperlinks.Hyperlink {
-			if link.Ref == cell {
+			ok, err := f.checkCellInRangeRef(cell, link.Ref)
+			if err != nil {
+				return false, "", err
+			}
+			if link.Ref == cell || ok {
 				if link.RID != "" {
 					return true, f.getSheetRelationshipsTargetByID(sheet, link.RID), err
 				}
@@ -1388,6 +1389,10 @@ func (f *File) prepareCellStyle(ws *xlsxWorksheet, col, row, style int) int {
 // given cell reference.
 func (f *File) mergeCellsParser(ws *xlsxWorksheet, cell string) (string, error) {
 	cell = strings.ToUpper(cell)
+	col, row, err := CellNameToCoordinates(cell)
+	if err != nil {
+		return cell, err
+	}
 	if ws.MergeCells != nil {
 		for i := 0; i < len(ws.MergeCells.Cells); i++ {
 			if ws.MergeCells.Cells[i] == nil {
@@ -1395,12 +1400,20 @@ func (f *File) mergeCellsParser(ws *xlsxWorksheet, cell string) (string, error) 
 				i--
 				continue
 			}
-			ok, err := f.checkCellInRangeRef(cell, ws.MergeCells.Cells[i].Ref)
-			if err != nil {
-				return cell, err
+			if ref := ws.MergeCells.Cells[i].Ref; len(ws.MergeCells.Cells[i].rect) == 0 && ref != "" {
+				if strings.Count(ref, ":") != 1 {
+					ref += ":" + ref
+				}
+				rect, err := rangeRefToCoordinates(ref)
+				if err != nil {
+					return cell, err
+				}
+				_ = sortCoordinates(rect)
+				ws.MergeCells.Cells[i].rect = rect
 			}
-			if ok {
+			if cellInRange([]int{col, row}, ws.MergeCells.Cells[i].rect) {
 				cell = strings.Split(ws.MergeCells.Cells[i].Ref, ":")[0]
+				break
 			}
 		}
 	}
