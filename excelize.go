@@ -28,7 +28,7 @@ import (
 
 // File define a populated spreadsheet file struct.
 type File struct {
-	sync.Mutex
+	mu               sync.Mutex
 	options          *Options
 	xmlAttr          map[string][]xml.Attr
 	checked          map[string]bool
@@ -101,11 +101,10 @@ func OpenFile(filename string, opts ...Options) (*File, error) {
 	}
 	f, err := OpenReader(file, opts...)
 	if err != nil {
-		closeErr := file.Close()
-		if closeErr == nil {
-			return f, err
+		if closeErr := file.Close(); closeErr != nil {
+			return f, closeErr
 		}
-		return f, closeErr
+		return f, err
 	}
 	f.Path = filename
 	return f, file.Close()
@@ -235,8 +234,6 @@ func (f *File) setDefaultTimeStyle(sheet, cell string, format int) error {
 // workSheetReader provides a function to get the pointer to the structure
 // after deserialization by given worksheet name.
 func (f *File) workSheetReader(sheet string) (ws *xlsxWorksheet, err error) {
-	f.Lock()
-	defer f.Unlock()
 	var (
 		name string
 		ok   bool
@@ -272,8 +269,8 @@ func (f *File) workSheetReader(sheet string) (ws *xlsxWorksheet, err error) {
 		f.checked = make(map[string]bool)
 	}
 	if ok = f.checked[name]; !ok {
-		checkSheet(ws)
-		if err = checkRow(ws); err != nil {
+		ws.checkSheet()
+		if err = ws.checkRow(); err != nil {
 			return
 		}
 		f.checked[name] = true
@@ -284,7 +281,7 @@ func (f *File) workSheetReader(sheet string) (ws *xlsxWorksheet, err error) {
 
 // checkSheet provides a function to fill each row element and make that is
 // continuous in a worksheet of XML.
-func checkSheet(ws *xlsxWorksheet) {
+func (ws *xlsxWorksheet) checkSheet() {
 	var row int
 	var r0 xlsxRow
 	for i, r := range ws.SheetData.Row {
@@ -320,13 +317,13 @@ func checkSheet(ws *xlsxWorksheet) {
 	for i := 1; i <= row; i++ {
 		sheetData.Row[i-1].R = i
 	}
-	checkSheetR0(ws, &sheetData, &r0)
+	ws.checkSheetR0(&sheetData, &r0)
 }
 
 // checkSheetR0 handle the row element with r="0" attribute, cells in this row
 // could be disorderly, the cell in this row can be used as the value of
 // which cell is empty in the normal rows.
-func checkSheetR0(ws *xlsxWorksheet, sheetData *xlsxSheetData, r0 *xlsxRow) {
+func (ws *xlsxWorksheet) checkSheetR0(sheetData *xlsxSheetData, r0 *xlsxRow) {
 	for _, cell := range r0.C {
 		if col, row, err := CellNameToCoordinates(cell.R); err == nil {
 			rows, rowIdx := len(sheetData.Row), row-1
@@ -352,8 +349,8 @@ func (f *File) setRels(rID, relPath, relType, target, targetMode string) int {
 	if rels == nil || rID == "" {
 		return f.addRels(relPath, relType, target, targetMode)
 	}
-	rels.Lock()
-	defer rels.Unlock()
+	rels.mu.Lock()
+	defer rels.mu.Unlock()
 	var ID int
 	for i, rel := range rels.Relationships {
 		if rel.ID == rID {
@@ -377,8 +374,8 @@ func (f *File) addRels(relPath, relType, target, targetMode string) int {
 	if rels == nil {
 		rels = &xlsxRelationships{}
 	}
-	rels.Lock()
-	defer rels.Unlock()
+	rels.mu.Lock()
+	defer rels.mu.Unlock()
 	var rID int
 	for idx, rel := range rels.Relationships {
 		ID, _ := strconv.Atoi(strings.TrimPrefix(rel.ID, "rId"))
@@ -491,8 +488,8 @@ func (f *File) AddVBAProject(file []byte) error {
 	if err != nil {
 		return err
 	}
-	rels.Lock()
-	defer rels.Unlock()
+	rels.mu.Lock()
+	defer rels.mu.Unlock()
 	var rID int
 	var ok bool
 	for _, rel := range rels.Relationships {
@@ -525,8 +522,8 @@ func (f *File) setContentTypePartProjectExtensions(contentType string) error {
 	if err != nil {
 		return err
 	}
-	content.Lock()
-	defer content.Unlock()
+	content.mu.Lock()
+	defer content.mu.Unlock()
 	for _, v := range content.Defaults {
 		if v.Extension == "bin" {
 			ok = true

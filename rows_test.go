@@ -11,6 +11,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestGetRows(t *testing.T) {
+	f := NewFile()
+	assert.NoError(t, f.SetCellValue("Sheet1", "A1", "A1"))
+	// Test get rows with unsupported charset shared strings table
+	f.SharedStrings = nil
+	f.Pkg.Store(defaultXMLPathSharedStrings, MacintoshCyrillicCharset)
+	_, err := f.GetRows("Sheet1")
+	assert.NoError(t, err)
+}
+
 func TestRows(t *testing.T) {
 	const sheet2 = "Sheet2"
 	f, err := OpenFile(filepath.Join("test", "Book1.xlsx"))
@@ -295,7 +305,7 @@ func TestRemoveRow(t *testing.T) {
 		colCount = 10
 		rowCount = 10
 	)
-	fillCells(f, sheet1, colCount, rowCount)
+	assert.NoError(t, fillCells(f, sheet1, colCount, rowCount))
 
 	assert.NoError(t, f.SetCellHyperLink(sheet1, "A5", "https://github.com/xuri/excelize", "External"))
 
@@ -358,7 +368,7 @@ func TestInsertRows(t *testing.T) {
 		colCount = 10
 		rowCount = 10
 	)
-	fillCells(f, sheet1, colCount, rowCount)
+	assert.NoError(t, fillCells(f, sheet1, colCount, rowCount))
 
 	assert.NoError(t, f.SetCellHyperLink(sheet1, "A5", "https://github.com/xuri/excelize", "External"))
 
@@ -1104,7 +1114,7 @@ func TestNumberFormats(t *testing.T) {
 		assert.NoError(t, f.SetCellValue("Sheet1", cell, value))
 		result, err := f.GetCellValue("Sheet1", cell)
 		assert.NoError(t, err)
-		assert.Equal(t, expected, result)
+		assert.Equal(t, expected, result, cell)
 	}
 	assert.NoError(t, f.SaveAs(filepath.Join("test", "TestNumberFormats.xlsx")))
 }

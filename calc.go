@@ -193,11 +193,29 @@ var (
 			return fmt.Sprintf("R[%d]C[%d]", row, col), nil
 		},
 	}
+	formularFormats = []*regexp.Regexp{
+		regexp.MustCompile(`^(\d+)$`),
+		regexp.MustCompile(`^=(.*)$`),
+		regexp.MustCompile(`^<>(.*)$`),
+		regexp.MustCompile(`^<=(.*)$`),
+		regexp.MustCompile(`^>=(.*)$`),
+		regexp.MustCompile(`^<(.*)$`),
+		regexp.MustCompile(`^>(.*)$`),
+	}
+	formularCriterias = []byte{
+		criteriaEq,
+		criteriaEq,
+		criteriaNe,
+		criteriaLe,
+		criteriaGe,
+		criteriaL,
+		criteriaG,
+	}
 )
 
 // calcContext defines the formula execution context.
 type calcContext struct {
-	sync.Mutex
+	mu                sync.Mutex
 	entry             string
 	maxCalcIterations uint
 	iterations        map[string]uint
@@ -791,11 +809,11 @@ func (f *File) CalcCellValue(sheet, cell string, opts ...Options) (result string
 	result = token.Value()
 	if isNum, precision, decimal := isNumeric(result); isNum {
 		if precision > 15 {
-			result, err = f.formattedValue(styleIdx, strings.ToUpper(strconv.FormatFloat(decimal, 'G', 15, 64)), rawCellValue)
+			result, err = f.formattedValue(&xlsxC{S: styleIdx, V: strings.ToUpper(strconv.FormatFloat(decimal, 'G', 15, 64))}, rawCellValue, CellTypeNumber)
 			return
 		}
 		if !strings.HasPrefix(result, "0") {
-			result, err = f.formattedValue(styleIdx, strings.ToUpper(strconv.FormatFloat(decimal, 'f', -1, 64)), rawCellValue)
+			result, err = f.formattedValue(&xlsxC{S: styleIdx, V: strings.ToUpper(strconv.FormatFloat(decimal, 'f', -1, 64))}, rawCellValue, CellTypeNumber)
 		}
 	}
 	return
@@ -1535,19 +1553,19 @@ func (f *File) cellResolver(ctx *calcContext, sheet, cell string) (formulaArg, e
 	)
 	ref := fmt.Sprintf("%s!%s", sheet, cell)
 	if formula, _ := f.GetCellFormula(sheet, cell); len(formula) != 0 {
-		ctx.Lock()
+		ctx.mu.Lock()
 		if ctx.entry != ref {
 			if ctx.iterations[ref] <= f.options.MaxCalcIterations {
 				ctx.iterations[ref]++
-				ctx.Unlock()
+				ctx.mu.Unlock()
 				arg, _ = f.calcCellValue(ctx, sheet, cell)
 				ctx.iterationsCache[ref] = arg
 				return arg, nil
 			}
-			ctx.Unlock()
+			ctx.mu.Unlock()
 			return ctx.iterationsCache[ref], nil
 		}
-		ctx.Unlock()
+		ctx.mu.Unlock()
 	}
 	if value, err = f.GetCellValue(sheet, cell, Options{RawCellValue: true}); err != nil {
 		return arg, err
@@ -1654,33 +1672,11 @@ func formulaCriteriaParser(exp string) (fc *formulaCriteria) {
 	if exp == "" {
 		return
 	}
-	if match := regexp.MustCompile(`^(\d+)$`).FindStringSubmatch(exp); len(match) > 1 {
-		fc.Type, fc.Condition = criteriaEq, match[1]
-		return
-	}
-	if match := regexp.MustCompile(`^=(.*)$`).FindStringSubmatch(exp); len(match) > 1 {
-		fc.Type, fc.Condition = criteriaEq, match[1]
-		return
-	}
-	if match := regexp.MustCompile(`^<>(.*)$`).FindStringSubmatch(exp); len(match) > 1 {
-		fc.Type, fc.Condition = criteriaNe, match[1]
-		return
-	}
-	if match := regexp.MustCompile(`^<=(.*)$`).FindStringSubmatch(exp); len(match) > 1 {
-		fc.Type, fc.Condition = criteriaLe, match[1]
-		return
-	}
-	if match := regexp.MustCompile(`^>=(.*)$`).FindStringSubmatch(exp); len(match) > 1 {
-		fc.Type, fc.Condition = criteriaGe, match[1]
-		return
-	}
-	if match := regexp.MustCompile(`^<(.*)$`).FindStringSubmatch(exp); len(match) > 1 {
-		fc.Type, fc.Condition = criteriaL, match[1]
-		return
-	}
-	if match := regexp.MustCompile(`^>(.*)$`).FindStringSubmatch(exp); len(match) > 1 {
-		fc.Type, fc.Condition = criteriaG, match[1]
-		return
+	for i, re := range formularFormats {
+		if match := re.FindStringSubmatch(exp); len(match) > 1 {
+			fc.Type, fc.Condition = formularCriterias[i], match[1]
+			return
+		}
 	}
 	if strings.Contains(exp, "?") {
 		exp = strings.ReplaceAll(exp, "?", ".")

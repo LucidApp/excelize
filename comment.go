@@ -68,8 +68,8 @@ func (f *File) GetComments(sheet string) ([]Comment, error) {
 func (f *File) getSheetComments(sheetFile string) string {
 	rels, _ := f.relsReader("xl/worksheets/_rels/" + sheetFile + ".rels")
 	if sheetRels := rels; sheetRels != nil {
-		sheetRels.Lock()
-		defer sheetRels.Unlock()
+		sheetRels.mu.Lock()
+		defer sheetRels.mu.Unlock()
 		for _, v := range sheetRels.Relationships {
 			if v.Type == SourceRelationshipComments {
 				return v.Target
@@ -125,6 +125,9 @@ func (f *File) AddComment(sheet string, comment Comment) error {
 				cols = chars
 			}
 		}
+	}
+	if len(comment.Runs) == 0 {
+		rows, cols = 1, len(comment.Text)
 	}
 	if err = f.addDrawingVML(commentID, drawingVML, comment.Cell, rows+1, cols); err != nil {
 		return err
