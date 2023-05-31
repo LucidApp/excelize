@@ -79,7 +79,7 @@ type Rows struct {
 	curRowOpts, seekRowOpts RowOpts
 }
 
-// Next will return true if find the next row element.
+// Next will return true if it finds the next row element.
 func (rows *Rows) Next() bool {
 	rows.seekRow++
 	if rows.curRow >= rows.seekRow {
@@ -297,7 +297,9 @@ func (f *File) getFromStringItem(index int) string {
 	}
 	needClose, decoder, tempFile, err := f.xmlDecoder(defaultXMLPathSharedStrings)
 	if needClose && err == nil {
-		defer tempFile.Close()
+		defer func() {
+			err = tempFile.Close()
+		}()
 	}
 	f.sharedStringItem = [][]uint{}
 	f.sharedStringTemp, _ = os.CreateTemp(os.TempDir(), "excelize-")
@@ -380,6 +382,9 @@ func (f *File) getRowHeight(sheet string, row int) int {
 			return int(convertRowHeightToPixels(*v.Ht))
 		}
 	}
+	if ws.SheetFormatPr != nil && ws.SheetFormatPr.DefaultRowHeight > 0 {
+		return int(convertRowHeightToPixels(ws.SheetFormatPr.DefaultRowHeight))
+	}
 	// Optimization for when the row heights haven't changed.
 	return int(defaultRowHeightPixels)
 }
@@ -390,7 +395,7 @@ func (f *File) getRowHeight(sheet string, row int) int {
 //	height, err := f.GetRowHeight("Sheet1", 1)
 func (f *File) GetRowHeight(sheet string, row int) (float64, error) {
 	if row < 1 {
-		return defaultRowHeightPixels, newInvalidRowNumberError(row)
+		return defaultRowHeight, newInvalidRowNumberError(row)
 	}
 	ht := defaultRowHeight
 	ws, err := f.workSheetReader(sheet)
@@ -840,10 +845,8 @@ func (f *File) SetRowStyle(sheet string, start, end, styleID int) error {
 // cell from user's units to pixels. If the height hasn't been set by the user
 // we use the default value. If the row is hidden it has a value of zero.
 func convertRowHeightToPixels(height float64) float64 {
-	var pixels float64
 	if height == 0 {
-		return pixels
+		return 0
 	}
-	pixels = math.Ceil(4.0 / 3.0 * height)
-	return pixels
+	return math.Ceil(4.0 / 3.4 * height)
 }

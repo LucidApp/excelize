@@ -1072,9 +1072,9 @@ func TestNumFmt(t *testing.T) {
 		{"43543.503206018519", "[$-F400]h:mm:ss AM/PM", "12:04:37"},
 	} {
 		result := format(item[0], item[1], false, CellTypeNumber, &Options{
-			ShortDateFmtCode: "yyyy/m/d",
-			LongDateFmtCode:  "yyyy\"年\"M\"月\"d\"日\"",
-			LongTimeFmtCode:  "H:mm:ss",
+			ShortDatePattern: "yyyy/m/d",
+			LongDatePattern:  "yyyy\"年\"M\"月\"d\"日\"",
+			LongTimePattern:  "H:mm:ss",
 		})
 		assert.Equal(t, item[2], result, item)
 	}
@@ -1093,7 +1093,7 @@ func TestNumFmt(t *testing.T) {
 		}
 	}
 	nf := numberFormat{}
-	err, changeNumFmtCode := nf.currencyLanguageHandler(0, nfp.Token{Parts: []nfp.Part{{}}})
+	err, changeNumFmtCode := nf.currencyLanguageHandler(nfp.Token{Parts: []nfp.Part{{}}})
 	assert.Equal(t, ErrUnsupportedNumberFormat, err)
 	assert.False(t, changeNumFmtCode)
 }
