@@ -794,6 +794,8 @@ func parseChartOptions(opts *Chart) (*Chart, error) {
 //	Maximum
 //	Minimum
 //	Font
+//	NumFmt
+//	Title
 //
 // The properties of 'YAxis' that can be set are:
 //
@@ -805,6 +807,9 @@ func parseChartOptions(opts *Chart) (*Chart, error) {
 //	Maximum
 //	Minimum
 //	Font
+//	LogBase
+//	NumFmt
+//	Title
 //
 // None: Disable axes.
 //
@@ -813,14 +818,14 @@ func parseChartOptions(opts *Chart) (*Chart, error) {
 // MinorGridLines: Specifies minor grid lines.
 //
 // MajorUnit: Specifies the distance between major ticks. Shall contain a
-// positive floating-point number. The MajorUnit property is optional. The
+// positive floating-point number. The 'MajorUnit' property is optional. The
 // default value is auto.
 //
 // TickLabelSkip: Specifies how many tick labels to skip between label that is
 // drawn. The 'TickLabelSkip' property is optional. The default value is auto.
 //
 // ReverseOrder: Specifies that the categories or values on reverse order
-// (orientation of the chart). The ReverseOrder property is optional. The
+// (orientation of the chart). The 'ReverseOrder' property is optional. The
 // default value is false.
 //
 // Maximum: Specifies that the fixed maximum, 0 is auto. The 'Maximum' property
@@ -841,8 +846,17 @@ func parseChartOptions(opts *Chart) (*Chart, error) {
 //	Color
 //	VertAlign
 //
+// LogBase: Specifies logarithmic scale base number of the vertical axis.
+//
+// NumFmt: Specifies that if linked to source and set custom number format code
+// for axis. The 'NumFmt' property is optional. The default format code is
+// 'General'.
+//
+// Title: Specifies that the primary horizontal or vertical axis title and
+// resize chart. The 'Title' property is optional.
+//
 // Set chart size by 'Dimension' property. The 'Dimension' property is optional.
-// The default width is 480, and height is 290.
+// The default width is 480, and height is 260.
 //
 // combo: Specifies the create a chart that combines two or more chart types in
 // a single chart. For example, create a clustered column - line chart with
