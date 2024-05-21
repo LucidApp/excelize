@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -364,11 +365,11 @@ func TestNewFile(t *testing.T) {
 	f := NewFile()
 	_, err := f.NewSheet("Sheet1")
 	assert.NoError(t, err)
-	_, err = f.NewSheet("XLSXSheet2")
+	_, err = f.NewSheet("Sheet2")
 	assert.NoError(t, err)
-	_, err = f.NewSheet("XLSXSheet3")
+	_, err = f.NewSheet("Sheet3")
 	assert.NoError(t, err)
-	assert.NoError(t, f.SetCellInt("XLSXSheet2", "A23", 56))
+	assert.NoError(t, f.SetCellInt("Sheet2", "A23", 56))
 	assert.NoError(t, f.SetCellStr("Sheet1", "B20", "42"))
 	f.SetActiveSheet(0)
 
@@ -381,15 +382,6 @@ func TestNewFile(t *testing.T) {
 
 	assert.NoError(t, f.SaveAs(filepath.Join("test", "TestNewFile.xlsx")))
 	assert.NoError(t, f.Save())
-}
-
-func TestAddDrawingVML(t *testing.T) {
-	// Test addDrawingVML with illegal cell reference
-	f := NewFile()
-	assert.EqualError(t, f.addDrawingVML(0, "", "*", 0, 0), newCellNameToCoordinatesError("*", newInvalidCellNameError("*")).Error())
-
-	f.Pkg.Store("xl/drawings/vmlDrawing1.vml", MacintoshCyrillicCharset)
-	assert.EqualError(t, f.addDrawingVML(0, "xl/drawings/vmlDrawing1.vml", "A1", 0, 0), "XML syntax error on line 1: invalid UTF-8")
 }
 
 func TestSetCellHyperLink(t *testing.T) {
@@ -408,8 +400,8 @@ func TestSetCellHyperLink(t *testing.T) {
 		Tooltip: &tooltip,
 	}))
 	// Test set cell hyperlink with invalid sheet name
-	assert.EqualError(t, f.SetCellHyperLink("Sheet:1", "A1", "Sheet1!D60", "Location"), ErrSheetNameInvalid.Error())
-	assert.EqualError(t, f.SetCellHyperLink("Sheet2", "C3", "Sheet1!D8", ""), `invalid link type ""`)
+	assert.Equal(t, ErrSheetNameInvalid, f.SetCellHyperLink("Sheet:1", "A1", "Sheet1!D60", "Location"))
+	assert.Equal(t, newInvalidLinkTypeError(""), f.SetCellHyperLink("Sheet2", "C3", "Sheet1!D8", ""))
 	assert.EqualError(t, f.SetCellHyperLink("Sheet2", "", "Sheet1!D60", "Location"), `invalid cell name ""`)
 	assert.NoError(t, f.SaveAs(filepath.Join("test", "TestSetCellHyperLink.xlsx")))
 	assert.NoError(t, f.Close())
@@ -750,11 +742,11 @@ func TestSetCellStyleNumberFormat(t *testing.T) {
 	idxTbl := []int{0, 1, 2, 3, 4, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49}
 	value := []string{"37947.7500001", "-37947.7500001", "0.007", "2.1", "String"}
 	expected := [][]string{
-		{"37947.7500001", "37948", "37947.75", "37,948", "37,947.75", "3794775%", "3794775.00%", "3.79E+04", "37947.7500001", "37947.7500001", "11-22-03", "22-Nov-03", "22-Nov", "Nov-03", "6:00 PM", "6:00:00 PM", "18:00", "18:00:00", "11/22/03 18:00", "37,948 ", "37,948 ", "37,947.75 ", "37,947.75 ", "37947.7500001", "37947.7500001", "37947.7500001", "37947.7500001", "00:00", "910746:00:00", "00:00.0", "37947.7500001", "37947.7500001"},
-		{"-37947.7500001", "-37948", "-37947.75", "-37,948", "-37,947.75", "-3794775%", "-3794775.00%", "-3.79E+04", "-37947.7500001", "-37947.7500001", "-37947.7500001", "-37947.7500001", "-37947.7500001", "-37947.7500001", "-37947.7500001", "-37947.7500001", "-37947.7500001", "-37947.7500001", "-37947.7500001", "(37,948)", "(37,948)", "(37,947.75)", "(37,947.75)", "-37947.7500001", "-37947.7500001", "-37947.7500001", "-37947.7500001", "-37947.7500001", "-37947.7500001", "-37947.7500001", "-37947.7500001", "-37947.7500001"},
-		{"0.007", "0", "0.01", "0", "0.01", "1%", "0.70%", "7.00E-03", "0.007", "0.007", "12-30-99", "30-Dec-99", "30-Dec", "Dec-99", "12:10 AM", "12:10:05 AM", "00:10", "00:10:05", "12/30/99 00:10", "0 ", "0 ", "0.01 ", "0.01 ", "0.007", "0.007", "0.007", "0.007", "10:05", "0:10:05", "10:04.8", "0.007", "0.007"},
-		{"2.1", "2", "2.10", "2", "2.10", "210%", "210.00%", "2.10E+00", "2.1", "2.1", "01-01-00", "1-Jan-00", "1-Jan", "Jan-00", "2:24 AM", "2:24:00 AM", "02:24", "02:24:00", "1/1/00 02:24", "2 ", "2 ", "2.10 ", "2.10 ", "2.1", "2.1", "2.1", "2.1", "24:00", "50:24:00", "24:00.0", "2.1", "2.1"},
-		{"String", "String", "String", "String", "String", "String", "String", "String", "String", "String", "String", "String", "String", "String", "String", "String", "String", "String", "String", "String", "String", "String", "String", "String", "String", "String", "String", "String", "String", "String", "String", "String"},
+		{"37947.75", "37948", "37947.75", "37,948", "37,947.75", "3794775%", "3794775.00%", "3.79E+04", "37947 3/4", "37947 3/4", "11-22-03", "22-Nov-03", "22-Nov", "Nov-03", "6:00 PM", "6:00:00 PM", "18:00", "18:00:00", "11/22/03 18:00", "37,948 ", "37,948 ", "37,947.75 ", "37,947.75 ", " 37,948 ", " $37,948 ", " 37,947.75 ", " $37,947.75 ", "00:00", "910746:00:00", "00:00.0", "37947.7500001", "37947.7500001"},
+		{"-37947.75", "-37948", "-37947.75", "-37,948", "-37,947.75", "-3794775%", "-3794775.00%", "-3.79E+04", "-37947 3/4", "-37947 3/4", "-37947.7500001", "-37947.7500001", "-37947.7500001", "-37947.7500001", "-37947.7500001", "-37947.7500001", "-37947.7500001", "-37947.7500001", "-37947.7500001", "(37,948)", "(37,948)", "(37,947.75)", "(37,947.75)", " (37,948)", " $(37,948)", " (37,947.75)", " $(37,947.75)", "-37947.7500001", "-37947.7500001", "-37947.7500001", "-37947.7500001", "-37947.7500001"},
+		{"0.007", "0", "0.01", "0", "0.01", "1%", "0.70%", "7.00E-03", "0    ", "0    ", "12-30-99", "30-Dec-99", "30-Dec", "Dec-99", "12:10 AM", "12:10:05 AM", "00:10", "00:10:05", "12/30/99 00:10", "0 ", "0 ", "0.01 ", "0.01 ", " 0 ", " $0 ", " 0.01 ", " $0.01 ", "10:05", "0:10:05", "10:04.8", "0.007", "0.007"},
+		{"2.1", "2", "2.10", "2", "2.10", "210%", "210.00%", "2.10E+00", "2 1/9", "2 1/10", "01-01-00", "1-Jan-00", "1-Jan", "Jan-00", "2:24 AM", "2:24:00 AM", "02:24", "02:24:00", "1/1/00 02:24", "2 ", "2 ", "2.10 ", "2.10 ", " 2 ", " $2 ", " 2.10 ", " $2.10 ", "24:00", "50:24:00", "24:00.0", "2.1", "2.1"},
+		{"String", "String", "String", "String", "String", "String", "String", "String", "String", "String", "String", "String", "String", "String", "String", "String", "String", "String", "String", "String", "String", "String", "String", " String ", " String ", " String ", " String ", "String", "String", "String", "String", "String"},
 	}
 
 	for c, v := range value {
@@ -803,11 +795,11 @@ func TestSetCellStyleCurrencyNumberFormat(t *testing.T) {
 		assert.NoError(t, f.SetCellValue("Sheet1", "A1", 56))
 		assert.NoError(t, f.SetCellValue("Sheet1", "A2", -32.3))
 		var style int
-		style, err = f.NewStyle(&Style{NumFmt: 188, DecimalPlaces: -1})
+		style, err = f.NewStyle(&Style{NumFmt: 188, DecimalPlaces: intPtr(-1)})
 		assert.NoError(t, err)
 
 		assert.NoError(t, f.SetCellStyle("Sheet1", "A1", "A1", style))
-		style, err = f.NewStyle(&Style{NumFmt: 188, DecimalPlaces: 31, NegRed: true})
+		style, err = f.NewStyle(&Style{NumFmt: 188, DecimalPlaces: intPtr(31), NegRed: true})
 		assert.NoError(t, err)
 
 		assert.NoError(t, f.SetCellStyle("Sheet1", "A2", "A2", style))
@@ -970,7 +962,7 @@ func TestSetDeleteSheet(t *testing.T) {
 		f, err := prepareTestBook3()
 		assert.NoError(t, err)
 
-		assert.NoError(t, f.DeleteSheet("XLSXSheet3"))
+		assert.NoError(t, f.DeleteSheet("Sheet3"))
 		assert.NoError(t, f.SaveAs(filepath.Join("test", "TestSetDeleteSheet.TestBook3.xlsx")))
 	})
 
@@ -978,7 +970,7 @@ func TestSetDeleteSheet(t *testing.T) {
 		f, err := prepareTestBook4()
 		assert.NoError(t, err)
 		assert.NoError(t, f.DeleteSheet("Sheet1"))
-		assert.NoError(t, f.AddComment("Sheet1", Comment{Cell: "A1", Author: "Excelize", Runs: []RichTextRun{{Text: "Excelize: ", Font: &Font{Bold: true}}, {Text: "This is a comment."}}}))
+		assert.NoError(t, f.AddComment("Sheet1", Comment{Cell: "A1", Author: "Excelize", Paragraph: []RichTextRun{{Text: "Excelize: ", Font: &Font{Bold: true}}, {Text: "This is a comment."}}}))
 		assert.NoError(t, f.SaveAs(filepath.Join("test", "TestSetDeleteSheet.TestBook4.xlsx")))
 	})
 }
@@ -1096,7 +1088,7 @@ func TestConditionalFormat(t *testing.T) {
 			{
 				Type:     "cell",
 				Criteria: "between",
-				Format:   format1,
+				Format:   &format1,
 				MinValue: "6",
 				MaxValue: "8",
 			},
@@ -1108,7 +1100,7 @@ func TestConditionalFormat(t *testing.T) {
 			{
 				Type:     "cell",
 				Criteria: ">",
-				Format:   format3,
+				Format:   &format3,
 				Value:    "6",
 			},
 		},
@@ -1119,7 +1111,7 @@ func TestConditionalFormat(t *testing.T) {
 			{
 				Type:     "top",
 				Criteria: "=",
-				Format:   format3,
+				Format:   &format3,
 			},
 		},
 	))
@@ -1129,7 +1121,7 @@ func TestConditionalFormat(t *testing.T) {
 			{
 				Type:     "unique",
 				Criteria: "=",
-				Format:   format2,
+				Format:   &format2,
 			},
 		},
 	))
@@ -1139,7 +1131,7 @@ func TestConditionalFormat(t *testing.T) {
 			{
 				Type:     "duplicate",
 				Criteria: "=",
-				Format:   format2,
+				Format:   &format2,
 			},
 		},
 	))
@@ -1149,7 +1141,7 @@ func TestConditionalFormat(t *testing.T) {
 			{
 				Type:     "top",
 				Criteria: "=",
-				Format:   format1,
+				Format:   &format1,
 				Value:    "6",
 				Percent:  true,
 			},
@@ -1161,7 +1153,7 @@ func TestConditionalFormat(t *testing.T) {
 			{
 				Type:         "average",
 				Criteria:     "=",
-				Format:       format3,
+				Format:       &format3,
 				AboveAverage: true,
 			},
 		},
@@ -1172,7 +1164,7 @@ func TestConditionalFormat(t *testing.T) {
 			{
 				Type:         "average",
 				Criteria:     "=",
-				Format:       format1,
+				Format:       &format1,
 				AboveAverage: false,
 			},
 		},
@@ -1195,7 +1187,7 @@ func TestConditionalFormat(t *testing.T) {
 			{
 				Type:     "formula",
 				Criteria: "L2<3",
-				Format:   format1,
+				Format:   &format1,
 			},
 		},
 	))
@@ -1205,21 +1197,23 @@ func TestConditionalFormat(t *testing.T) {
 			{
 				Type:     "cell",
 				Criteria: ">",
-				Format:   format4,
+				Format:   &format4,
 				Value:    "0",
 			},
 		},
 	))
+	// Test set conditional format with invalid cell reference
+	assert.Equal(t, newCellNameToCoordinatesError("-", newInvalidCellNameError("-")), f.SetConditionalFormat("Sheet1", "A1:-", nil))
 	// Test set conditional format on not exists worksheet
 	assert.EqualError(t, f.SetConditionalFormat("SheetN", "L1:L10", nil), "sheet SheetN does not exist")
 	// Test set conditional format with invalid sheet name
-	assert.EqualError(t, f.SetConditionalFormat("Sheet:1", "L1:L10", nil), ErrSheetNameInvalid.Error())
+	assert.Equal(t, ErrSheetNameInvalid, f.SetConditionalFormat("Sheet:1", "L1:L10", nil))
 
 	err = f.SaveAs(filepath.Join("test", "TestConditionalFormat.xlsx"))
 	assert.NoError(t, err)
 
 	// Set conditional format with illegal valid type
-	assert.NoError(t, f.SetConditionalFormat(sheet1, "K1:K10",
+	assert.Equal(t, ErrParameterInvalid, f.SetConditionalFormat(sheet1, "K1:K10",
 		[]ConditionalFormatOptions{
 			{
 				Type:     "",
@@ -1231,7 +1225,7 @@ func TestConditionalFormat(t *testing.T) {
 		},
 	))
 	// Set conditional format with illegal criteria type
-	assert.NoError(t, f.SetConditionalFormat(sheet1, "K1:K10",
+	assert.Equal(t, ErrParameterInvalid, f.SetConditionalFormat(sheet1, "K1:K10",
 		[]ConditionalFormatOptions{
 			{
 				Type:     "data_bar",
@@ -1245,7 +1239,7 @@ func TestConditionalFormat(t *testing.T) {
 	// Test create conditional format with invalid custom number format
 	var exp string
 	_, err = f.NewConditionalStyle(&Style{CustomNumFmt: &exp})
-	assert.EqualError(t, err, ErrCustomNumFmt.Error())
+	assert.Equal(t, ErrCustomNumFmt, err)
 
 	// Set conditional format with file without dxfs element should not return error
 	f, err = OpenFile(filepath.Join("test", "Book1.xlsx"))
@@ -1540,7 +1534,7 @@ func TestWorkSheetReader(t *testing.T) {
 	f = NewFile()
 	f.Sheet.Delete("xl/worksheets/sheet1.xml")
 	f.Pkg.Store("xl/worksheets/sheet1.xml", []byte(`<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData/></worksheet>`))
-	f.checked = nil
+	f.checked = sync.Map{}
 	_, err = f.workSheetReader("Sheet1")
 	assert.NoError(t, err)
 }
@@ -1616,13 +1610,13 @@ func prepareTestBook1() (*File, error) {
 
 func prepareTestBook3() (*File, error) {
 	f := NewFile()
-	if _, err := f.NewSheet("XLSXSheet2"); err != nil {
+	if _, err := f.NewSheet("Sheet2"); err != nil {
 		return nil, err
 	}
-	if _, err := f.NewSheet("XLSXSheet3"); err != nil {
+	if _, err := f.NewSheet("Sheet3"); err != nil {
 		return nil, err
 	}
-	if err := f.SetCellInt("XLSXSheet2", "A23", 56); err != nil {
+	if err := f.SetCellInt("Sheet2", "A23", 56); err != nil {
 		return nil, err
 	}
 	if err := f.SetCellStr("Sheet1", "B20", "42"); err != nil {
